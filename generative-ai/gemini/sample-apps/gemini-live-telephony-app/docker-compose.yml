@@ -1,0 +1,86 @@
+version: "3.8"
+
+services:
+  asterisk:
+    image: asterisk:latest
+    container_name: asterisk-gemini-pbx
+    ports:
+      - "5060:5060/udp"
+      - "5061:5061/tcp"
+      - "8088:8088/tcp"
+    environment:
+      - ASTERISK_UID=100
+      - ASTERISK_GID=101
+    volumes:
+      - ./asterisk/etc:/etc/asterisk
+      - ./asterisk/var:/var/lib/asterisk
+      - ./asterisk/logs:/var/log/asterisk
+    networks:
+      - gemini-network
+    healthcheck:
+      test: ["CMD", "asterisk", "-rx", "core show version"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+    depends_on:
+      - redis
+
+  python-service:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: asterisk-gemini-ai
+    ports:
+      - "8000:8000/tcp"
+      - "10000-20000:10000-20000/udp"
+    environment:
+      GOOGLE_CLOUD_PROJECT: ${GOOGLE_CLOUD_PROJECT}
+      GOOGLE_CLOUD_LOCATION: ${GOOGLE_CLOUD_LOCATION:-us-central1}
+      ARI_BASE_URL: http://asterisk:8088
+      ARI_USERNAME: ${ARI_USERNAME:-asterisk}
+      ARI_PASSWORD: ${ARI_PASSWORD:-asterisk}
+      ARI_APP_NAME: ${ARI_APP_NAME:-convobridge}
+      RTP_LOCAL_IP: 0.0.0.0
+      RTP_LOCAL_PORT_RANGE_START: ${RTP_LOCAL_PORT_RANGE_START:-10000}
+      RTP_LOCAL_PORT_RANGE_END: ${RTP_LOCAL_PORT_RANGE_END:-20000}
+      SERVICE_LOG_LEVEL: ${SERVICE_LOG_LEVEL:-INFO}
+      ENABLE_TRANSCRIPT_LOGGING: ${ENABLE_TRANSCRIPT_LOGGING:-true}
+      ENABLE_REDIS_STATE: ${ENABLE_REDIS_STATE:-false}
+      REDIS_URL: redis://redis:6379/0
+      PYTHONUNBUFFERED: 1
+    volumes:
+      - ${GOOGLE_APPLICATION_CREDENTIALS}:/google-credentials.json:ro
+      - ./logs:/app/logs
+    working_dir: /app
+    networks:
+      - gemini-network
+    depends_on:
+      asterisk:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+
+  redis:
+    image: redis:7-alpine
+    container_name: asterisk-gemini-redis
+    ports:
+      - "6379:6379/tcp"
+    networks:
+      - gemini-network
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+    volumes:
+      - redis-data:/data
+
+networks:
+  gemini-network:
+    driver: bridge
+
+volumes:
+  redis-data:
