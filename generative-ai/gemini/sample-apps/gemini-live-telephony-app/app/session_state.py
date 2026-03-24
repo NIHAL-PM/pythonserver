@@ -41,6 +41,7 @@ class CallSession:
 
     # State Flags
     is_playing: bool = False
+    call_active: bool = True
     stop_playback_event: asyncio.Event = field(default_factory=asyncio.Event)
 
     # Tool Processing
@@ -65,6 +66,7 @@ class CallSession:
 
     async def cleanup(self) -> None:
         """Cleanup session resources."""
+        self.call_active = False
         try:
             if self.gemini_ws:
                 await self.gemini_ws.close()
