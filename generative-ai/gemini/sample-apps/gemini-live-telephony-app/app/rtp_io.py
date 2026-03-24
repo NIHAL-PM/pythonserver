@@ -170,9 +170,13 @@ class RTPUDPTransport:
 
         loop = asyncio.get_event_loop()
         try:
+            if not self.socket:
+                return
             await loop.sock_sendto(self.socket, packet.to_bytes(), self.remote_addr)
         except Exception as e:
-            logger.error(f"Error sending RTP packet: {e}")
+            logger.error(f"Error sending RTP packet to {self.remote_addr}: {type(e).__name__}: {e}")
+            if hasattr(e, 'errno'):
+                logger.error(f"  Errno: {e.errno}")
 
     async def close(self) -> None:
         """Close socket."""

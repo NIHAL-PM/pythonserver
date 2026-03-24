@@ -19,7 +19,10 @@ from typing import Optional
 
 import aiohttp
 
-from app.config import Config
+try:
+    from app.config import Config
+except ImportError:
+    from config import Config
 
 logger = logging.getLogger(__name__)
 
