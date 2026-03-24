@@ -29,15 +29,15 @@ import uvicorn
 from fastapi import FastAPI
 from google import genai
 
-from app.asterisk_ari import AsteriskARIClient, StasisEventHandler
-from app.audio_transcoding import (
+from app.asterisk.asterisk_ari import AsteriskARIClient, StasisEventHandler
+from app.ai.audio_transcoding import (
     AudioTranscoder,
     gemini_outbound_to_rtp,
     rtp_inbound_to_gemini,
 )
 from app.config import Config
-from app.gemini_live import run_gemini_session
-from app.rtp_io import RTPManager
+from app.ai.gemini_live import run_gemini_session
+from app.asterisk.rtp_io import RTPManager
 from app.session_state import get_session_manager
 
 # Configuration

@@ -35,61 +35,32 @@ class AudioTranscoder:
             "sinc_fastest", channels=1
         )  # 24k -> 8k
 
-    async def asterisk_to_gemini(self, ulaw_pcm: bytes) -> bytes:
+    def asterisk_to_gemini(self, ulaw_pcm: bytes) -> bytes:
         """
-        Convert Asterisk RTP payload to Gemini input.
-
-        Pipeline:
-        1. PCMU μ-law 8kHz -> PCM16 8kHz
-        2. Resample 8kHz -> 16kHz
-        3. Return as PCM16 bytes
+        Convert Asterisk RTP payload to Gemini input. Synchronous for speed.
         """
         try:
             # 1. Decode μ-law to PCM16
             pcm_8k = audioop.ulaw2lin(ulaw_pcm, 2)
 
-            # 2. Convert to float32 for resampling
-            arr_8k = np.frombuffer(pcm_8k, dtype=np.int16)
-            arr_8k_float = arr_8k.astype(np.float32) / 32768.0
-
-            # 3. Resample 8k -> 16k
-            arr_16k_float = self.resampler_up.process(
-                arr_8k_float, ratio=2.0, end_of_input=False
-            )
-
-            # 4. Convert back to int16
-            arr_16k = (arr_16k_float * 32767).astype(np.int16)
-
-            return arr_16k.tobytes()
+            # 2. Resample 8k -> 16k using efficient audioop
+            # Using audioop.ratecv for fastest integer resampling
+            pcm_16k, _ = audioop.ratecv(pcm_8k, 2, 1, 8000, 16000, None)
+            return pcm_16k
         except Exception as e:
             logger.error(f"Error in asterisk_to_gemini: {e}")
             return b""
 
-    async def gemini_to_asterisk(self, pcm_24k: bytes) -> bytes:
+    def gemini_to_asterisk(self, pcm_24k: bytes) -> bytes:
         """
-        Convert Gemini output to Asterisk RTP payload.
-
-        Pipeline:
-        1. PCM16 24kHz -> PCM16 8kHz (resample down)
-        2. PCM16 8kHz -> PCMU μ-law 8kHz
-        3. Return as μ-law bytes in 20ms RTP frames
+        Convert Gemini output to Asterisk RTP payload. Synchronous for speed.
         """
         try:
-            # 1. Convert to float32 for resampling
-            arr_24k = np.frombuffer(pcm_24k, dtype=np.int16)
-            arr_24k_float = arr_24k.astype(np.float32) / 32768.0
+            # 1. Resample 24k -> 8k using efficient audioop
+            pcm_8k, _ = audioop.ratecv(pcm_24k, 2, 1, 24000, 8000, None)
 
-            # 2. Resample 24k -> 8k
-            arr_8k_float = self.resampler_down.process(
-                arr_24k_float, ratio=(8000.0 / 24000.0), end_of_input=False
-            )
-
-            # 3. Convert back to int16
-            arr_8k = (arr_8k_float * 32767).astype(np.int16)
-
-            # 4. Convert PCM to μ-law
-            ulaw = audioop.lin2ulaw(arr_8k.tobytes(), 2)
-
+            # 2. Convert PCM to μ-law
+            ulaw = audioop.lin2ulaw(pcm_8k, 2)
             return ulaw
         except Exception as e:
             logger.error(f"Error in gemini_to_asterisk: {e}")

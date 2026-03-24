@@ -67,10 +67,10 @@ async def run_gemini_session(
                 realtime_input_config=types.RealtimeInputConfig(
                     automatic_activity_detection=types.AutomaticActivityDetection(
                         disabled=False,
-                        start_of_speech_sensitivity=types.StartSensitivity.START_SENSITIVITY_LOW,
-                        end_of_speech_sensitivity=types.EndSensitivity.END_SENSITIVITY_LOW,
-                        prefix_padding_ms=20,
-                        silence_duration_ms=150,
+                        start_of_speech_sensitivity=types.StartSensitivity.START_SENSITIVITY_HIGH,
+                        end_of_speech_sensitivity=types.EndSensitivity.END_SENSITIVITY_HIGH,
+                        prefix_padding_ms=0,
+                        silence_duration_ms=50,
                     )
                 ),
             )
@@ -136,6 +136,15 @@ async def run_gemini_session(
                                     )
 
                             if message.server_content:
+                                if message.server_content.interrupted:
+                                    logger.info(f"Gemini interrupted for {session.channel_id}")
+                                    # Clear the outbound queue on interruption
+                                    while not out_q.empty():
+                                        try:
+                                            out_q.get_nowait()
+                                        except asyncio.QueueEmpty:
+                                            break
+
                                 if message.server_content.model_turn:
                                     for part in message.server_content.model_turn.parts:
                                         if part.inline_data:

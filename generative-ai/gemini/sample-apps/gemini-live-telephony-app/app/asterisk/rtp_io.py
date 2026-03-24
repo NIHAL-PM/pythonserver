@@ -18,7 +18,10 @@ import socket
 import struct
 from typing import Optional, Tuple
 
-from app.config import Config
+try:
+    from app.config import Config
+except ImportError:
+    from config import Config
 
 logger = logging.getLogger(__name__)
 
@@ -26,6 +29,11 @@ logger = logging.getLogger(__name__)
 RTP_VERSION = 2
 RTP_PAYLOAD_TYPE_PCMU = 0  # PCMU (μ-law)
 
+# Optimized constants for 20ms frames
+SAMPLES_PER_FRAME = 160
+CHANNELS = 1
+BYTES_PER_SAMPLE = 1
+FRAME_SIZE = SAMPLES_PER_FRAME * CHANNELS * BYTES_PER_SAMPLE
 
 class RTPPacket:
     """Simple RTP packet parser and builder."""
@@ -222,7 +230,71 @@ class RTPManager:
         if self.transport:
             await self.transport.send_packet(payload)
 
-    async def close(self) -> None:
-        """Close RTP transport."""
-        if self.transport:
-            await self.transport.close()
+    async def rtp_inbound_to_gemini(
+        self, in_q: asyncio.Queue, transcoder, session
+    ) -> None:
+        """
+        Background task to receive RTP packets and send to Gemini input queue.
+        """
+        logger.info(f"Starting RTP inbound for {self.channel_id}")
+        while session.call_active:
+            try:
+                result = await self.receive()
+                if not result:
+                    await asyncio.sleep(0.005) # Small sleep to prevent busy loop
+                    continue
+
+                payload, addr = result
+                # Process inbound audio for Gemini
+                pcm_16k = transcoder.asterisk_to_gemini(payload)
+                if pcm_16k:
+                    await in_q.put(pcm_16k)
+
+            except Exception as e:
+                logger.error(f"Error in RTP inbound for {self.channel_id}: {e}")
+                break
+        logger.info(f"RTP inbound stopped for {self.channel_id}")
+
+    async def gemini_outbound_to_rtp(
+        self, out_q: asyncio.Queue, transcoder, session
+    ) -> None:
+        """
+        Background task to receive Gemini audio and send as RTP packets.
+        """
+        logger.info(f"Starting RTP outbound for {self.channel_id}")
+        
+        # Buffer for outgoing audio to ensure 20ms frames
+        buffer = b""
+        
+        while session.call_active:
+            try:
+                # Check for Gemini interruption (if VAD is used or session reset)
+                # Note: session logic handles clearing queues when interrupted
+                
+                chunk = await asyncio.wait_for(out_q.get(), timeout=0.1)
+                ulaw_data = transcoder.gemini_to_asterisk(chunk)
+                buffer += ulaw_data
+
+                # Send in 20ms increments (160 bytes of μ-law)
+                while len(buffer) >= FRAME_SIZE:
+                    frame = buffer[:FRAME_SIZE]
+                    buffer = buffer[FRAME_SIZE:]
+                    await self.send(frame)
+                    # For 20ms frames at 8kHz, no sleep needed here if 
+                    # we are just draining the queue as fast as Gemini produces it.
+                    # Asterisk will buffer slightly.
+
+            except asyncio.TimeoutError:
+                continue
+            except Exception as e:
+                logger.error(f"Error in RTP outbound for {self.channel_id}: {e}")
+                break
+        logger.info(f"RTP outbound stopped for {self.channel_id}")
+
+async def rtp_inbound_to_gemini(rtp_manager, in_q, transcoder, session):
+    """Legacy wrapper."""
+    await rtp_manager.rtp_inbound_to_gemini(in_q, transcoder, session)
+
+async def gemini_outbound_to_rtp(rtp_manager, out_q, transcoder, session):
+    """Legacy wrapper."""
+    await rtp_manager.gemini_outbound_to_rtp(out_q, transcoder, session)
