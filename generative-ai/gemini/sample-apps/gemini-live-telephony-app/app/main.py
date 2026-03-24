@@ -206,12 +206,18 @@ async def startup():
         Config.validate()
 
         # Initialize Gemini client
-        gemini_client = genai.Client(
-            vertexai=True,
-            project=Config.GOOGLE_CLOUD_PROJECT,
-            location=Config.GOOGLE_CLOUD_LOCATION,
-        )
-        logger.info("Gemini client initialized")
+        if Config.GOOGLE_API_KEY:
+            # Use API key directly
+            gemini_client = genai.Client(api_key=Config.GOOGLE_API_KEY)
+            logger.info("Gemini client initialized with API key")
+        else:
+            # Use Vertex AI with Application Default Credentials
+            gemini_client = genai.Client(
+                vertexai=True,
+                project=Config.GOOGLE_CLOUD_PROJECT,
+                location=Config.GOOGLE_CLOUD_LOCATION,
+            )
+            logger.info("Gemini client initialized with Vertex AI")
 
         # Initialize ARI client
         ari_client = AsteriskARIClient(
