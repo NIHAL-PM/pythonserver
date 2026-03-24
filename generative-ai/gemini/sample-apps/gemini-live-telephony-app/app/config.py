@@ -59,7 +59,7 @@ class Config:
     GOOGLE_CLOUD_PROJECT: str = os.getenv("GOOGLE_CLOUD_PROJECT", "")
     GOOGLE_CLOUD_LOCATION: str = os.getenv("GOOGLE_CLOUD_LOCATION", "us-central1")
     GEMINI_MODEL: str = os.getenv(
-        "GEMINI_MODEL", "gemini-2.0-flash-exp"
+        "GEMINI_MODEL", "gemini-4.5-pro"
     )  # Model name
     GEMINI_VOICE: str = os.getenv("GEMINI_VOICE", "Puck")  # Voice presets
 

@@ -81,6 +81,14 @@ async def run_gemini_session(
                 logger.info(f"Gemini connected for {session.channel_id}")
                 session.gemini_ws = gemini_session
 
+                # Proactive Audio: Send initial message if session is new
+                if not session_handle and Config.INITIAL_MESSAGE:
+                    logger.info(f"Sending proactive initial message: {Config.INITIAL_MESSAGE}")
+                    await gemini_session.send(
+                        input=Config.INITIAL_MESSAGE,
+                        end_of_turn=True
+                    )
+
                 async def sender_loop():
                     """Send audio to Gemini."""
                     while session and session.gemini_ws:

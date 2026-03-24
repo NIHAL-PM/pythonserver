@@ -230,6 +230,11 @@ class RTPManager:
         if self.transport:
             await self.transport.send_packet(payload)
 
+    async def close(self) -> None:
+        """Close RTP transport."""
+        if self.transport:
+            await self.transport.close()
+
     async def rtp_inbound_to_gemini(
         self, in_q: asyncio.Queue, transcoder, session
     ) -> None:

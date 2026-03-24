@@ -30,14 +30,14 @@ from fastapi import FastAPI
 from google import genai
 
 from app.asterisk.asterisk_ari import AsteriskARIClient, StasisEventHandler
-from app.ai.audio_transcoding import (
-    AudioTranscoder,
-    gemini_outbound_to_rtp,
-    rtp_inbound_to_gemini,
-)
+from app.ai.audio_transcoding import AudioTranscoder
 from app.config import Config
 from app.ai.gemini_live import run_gemini_session
-from app.asterisk.rtp_io import RTPManager
+from app.asterisk.rtp_io import (
+    RTPManager,
+    rtp_inbound_to_gemini,
+    gemini_outbound_to_rtp,
+)
 from app.session_state import get_session_manager
 
 # Configuration

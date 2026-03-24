@@ -69,35 +69,6 @@ class AudioTranscoder:
     def get_silence_frame(self) -> bytes:
         """Return 20ms of silence (160 samples at 8kHz μ-law)."""
         return b"\xff" * 160  # μ-law silence
-
-
-async def rtp_inbound_to_gemini(
-    rtp_manager, audio_queue: asyncio.Queue, transcoder: AudioTranscoder, session
-) -> None:
-    """
-    Receive RTP from Asterisk and forward to Gemini.
-    """
-    while session and not session.is_playing:
-        try:
-            result = await rtp_manager.receive()
-            if result:
-                ulaw_payload, addr = result
-                # Convert to Gemini format
-                gemini_audio = await transcoder.asterisk_to_gemini(ulaw_payload)
-                if gemini_audio:
-                    await audio_queue.put(gemini_audio)
-            else:
-                await asyncio.sleep(0.01)
-        except Exception as e:
-            logger.error(f"Error in rtp_inbound_to_gemini: {e}")
-            break
-
-
-async def gemini_outbound_to_rtp(
-    rtp_manager, audio_queue: asyncio.Queue, transcoder: AudioTranscoder, session
-) -> None:
-    """
-    Receive audio from Gemini and packetize into RTP for Asterisk.
     """
     buffer = b""
     frame_size = 160  # 20ms at 8kHz μ-law
