@@ -127,7 +127,7 @@ class AsteriskARIClient:
         """Create external media channel for RTP."""
         return await self._request(
             "POST",
-            f"/channels/externalMedia",
+            "/channels/externalMedia",
             json={
                 "app": self.app_name,
                 "external_host": f"{external_host}:{external_port}",
@@ -136,6 +136,7 @@ class AsteriskARIClient:
                 "encapsulation": "rtp",
                 "connection_type": "client",
                 "direction": "both",
+                "channelId": channel_id
             },
         )
 

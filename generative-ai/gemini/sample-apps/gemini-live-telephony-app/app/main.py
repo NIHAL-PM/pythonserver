@@ -127,6 +127,15 @@ async def handle_call_worker(channel_id: str, session) -> None:
             session.rtp_local_port = rtp_port
             logger.info(f"External media created for {channel_id}")
 
+            # Bridge the main call channel to the external media channel
+            # This is essential to route audio from the caller to our RTP socket
+            await ari_client.add_channel_to_bridge(
+                session.bridge_id, ext_media_result.get("id")
+            )
+            logger.info(f"External media channel {session.external_media_channel_id} added to bridge {session.bridge_id}")
+        else:
+            logger.error(f"Failed to create external media for {channel_id}, audio will not flow.")
+
         # Audio subsystem
         transcoder = AudioTranscoder()
         in_q = asyncio.Queue()  # RTP -> Gemini
