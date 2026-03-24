@@ -276,24 +276,29 @@ class RTPManager:
                 # Check for Gemini interruption (if VAD is used or session reset)
                 # Note: session logic handles clearing queues when interrupted
                 
-                chunk = await asyncio.wait_for(out_q.get(), timeout=0.1)
-                ulaw_data = transcoder.gemini_to_asterisk(chunk)
-                buffer += ulaw_data
+                try:
+                    chunk = await asyncio.wait_for(out_q.get(), timeout=0.1)
+                    ulaw_data = transcoder.gemini_to_asterisk(chunk)
+                    buffer += ulaw_data
+                except asyncio.TimeoutError:
+                    # No new audio from Gemini for 100ms
+                    # If we still have data in buffer, just continue to drain it
+                    if not buffer:
+                        continue
 
                 # Send in 20ms increments (160 bytes of μ-law)
                 while len(buffer) >= FRAME_SIZE:
                     frame = buffer[:FRAME_SIZE]
                     buffer = buffer[FRAME_SIZE:]
                     await self.send(frame)
-                    # For 20ms frames at 8kHz, no sleep needed here if 
-                    # we are just draining the queue as fast as Gemini produces it.
-                    # Asterisk will buffer slightly.
+                    # For 20ms frames at 8kHz, we add a small paced sleep
+                    # to prevent flooding the Asterisk buffer too fast
+                    await asyncio.sleep(0.019) 
 
-            except asyncio.TimeoutError:
-                continue
             except Exception as e:
                 logger.error(f"Error in RTP outbound for {self.channel_id}: {e}")
                 break
+
         logger.info(f"RTP outbound stopped for {self.channel_id}")
 
 async def rtp_inbound_to_gemini(rtp_manager, in_q, transcoder, session):

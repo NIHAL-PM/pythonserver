@@ -70,7 +70,7 @@ async def run_gemini_session(
                         start_of_speech_sensitivity=types.StartSensitivity.START_SENSITIVITY_HIGH,
                         end_of_speech_sensitivity=types.EndSensitivity.END_SENSITIVITY_HIGH,
                         prefix_padding_ms=0,
-                        silence_duration_ms=50,
+                        silence_duration_ms=100,
                     )
                 ),
             )
