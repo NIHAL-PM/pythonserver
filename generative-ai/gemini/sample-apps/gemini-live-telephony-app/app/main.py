@@ -221,7 +221,7 @@ async def startup():
 
         # Initialize ARI client
         ari_client = AsteriskARIClient(
-            Config.ARI_BASE_URL, Config.ARI_USERNAME, Config.ARI_PASSWORD
+            Config.ARI_BASE_URL, Config.ARI_USERNAME, Config.ARI_PASSWORD, Config.ARI_APP_NAME
         )
         await ari_client.connect()
         logger.info("ARI client connected")
@@ -243,7 +243,9 @@ async def shutdown():
     logger.info("Shutting down...")
 
     # Cancel all call workers
-    for task in call_workers.values():
+    # Create a list copy to avoid "dictionary changed size during iteration" error
+    tasks_to_cancel = list(call_workers.values())
+    for task in tasks_to_cancel:
         task.cancel()
         try:
             await task

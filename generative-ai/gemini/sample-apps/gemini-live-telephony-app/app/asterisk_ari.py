@@ -27,10 +27,11 @@ logger = logging.getLogger(__name__)
 class AsteriskARIClient:
     """Asterisk ARI HTTP client for call control."""
 
-    def __init__(self, base_url: str, username: str, password: str):
+    def __init__(self, base_url: str, username: str, password: str, app_name: str = "convobridge"):
         self.base_url = base_url.rstrip("/")
         self.username = username
         self.password = password
+        self.app_name = app_name
         self.session: Optional[aiohttp.ClientSession] = None
         self.auth = aiohttp.BasicAuth(username, password)
 
