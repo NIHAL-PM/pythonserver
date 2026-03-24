@@ -118,7 +118,7 @@ async def handle_call_worker(channel_id: str, session) -> None:
         # Create external media channel in Asterisk
         ext_media_result = await ari_client.create_external_media(
             channel_id=f"external-{channel_id}",
-            external_host="127.0.0.1",
+            external_host=Config.ARI_EXTERNAL_HOST,
             external_port=rtp_port,
             format="ulaw",
         )
@@ -191,17 +191,29 @@ async def handle_call_worker(channel_id: str, session) -> None:
 
 async def stasis_event_wrapper(event: dict) -> None:
     """Wrapper for Stasis event handling with call worker spawning."""
-    await event_handler.handle_event(event)
+    # 1. Spawn call worker BEFORE handling common StasisStart logic
+    # This allows handle_stasis_start to ignore UnicastRTP while we still pick up the main channel
+    event_type = event.get("type")
+    channel = event.get("channel", {})
+    channel_id = channel.get("id")
+    channel_name = channel.get("name", "")
 
-    # Spawn call worker for StasisStart
-    if event.get("type") == "StasisStart":
-        channel_id = event.get("channel", {}).get("id")
-        if channel_id and channel_id not in call_workers:
-            session = await session_manager.get_session(channel_id)
-            if session:
-                task = asyncio.create_task(handle_call_worker(channel_id, session))
-                call_workers[channel_id] = task
-                logger.info(f"Spawned call worker for {channel_id}")
+    if event_type == "StasisStart":
+        # Ignore UnicastRTP (external media) for worker spawning
+        if not channel_name.startswith("UnicastRTP"):
+            if channel_id and channel_id not in call_workers:
+                # We need the session to exist first
+                await event_handler.handle_event(event)
+                
+                session = await session_manager.get_session(channel_id)
+                if session:
+                    task = asyncio.create_task(handle_call_worker(channel_id, session))
+                    call_workers[channel_id] = task
+                    logger.info(f"Spawned call worker for {channel_id}")
+                return # Already handled stasis_start
+    
+    # Handle all other events
+    await event_handler.handle_event(event)
 
 
 async def start_ari_listener() -> None:
@@ -213,7 +225,9 @@ async def start_ari_listener() -> None:
 def signal_handler(sig, frame):
     """Handle shutdown signals."""
     logger.info(f"Received signal {sig}, shutting down...")
-    sys.exit(0)
+    # sys.exit(0) is too abrupt for Uvicorn
+    # The lifespan context manager will handle startup/shutdown properly when uvicorn terminates.
+
 
 
 async def startup():

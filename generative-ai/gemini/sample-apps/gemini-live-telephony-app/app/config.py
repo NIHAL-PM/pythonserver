@@ -35,6 +35,8 @@ class Config:
     RTP_LOCAL_IP: str = os.getenv(
         "RTP_LOCAL_IP", "0.0.0.0"
     )  # Listen on all interfaces
+    # The external host address given to Asterisk for externalMedia
+    ARI_EXTERNAL_HOST: str = os.getenv("ARI_EXTERNAL_HOST", "127.0.0.1")
     RTP_LOCAL_PORT_RANGE_START: int = int(
         os.getenv("RTP_LOCAL_PORT_RANGE_START", "10000")
     )

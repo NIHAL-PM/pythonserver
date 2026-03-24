@@ -173,6 +173,14 @@ class StasisEventHandler:
         try:
             channel = event.get("channel", {})
             channel_id = channel.get("id")
+            
+            # 🛑 1. Ignore UnicastRTP (Audio streams) for main processing
+            # These are created via externalMedia and will be added to the existing bridge
+            channel_name = channel.get("name", "")
+            if channel_name.startswith("UnicastRTP"):
+                logger.debug(f"Ignoring StasisStart for external media channel: {channel_name} ({channel_id})")
+                return
+
             caller = channel.get("caller", {}).get("number", "unknown")
             dialed_did = channel.get("dialplan", {}).get("exten", "unknown")
 
