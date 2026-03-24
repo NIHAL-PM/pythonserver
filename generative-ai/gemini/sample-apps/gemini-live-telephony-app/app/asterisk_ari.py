@@ -59,12 +59,16 @@ class AsteriskARIClient:
                     # Log request details for debugging
                     req_json = kwargs.get('json', {})
                     req_params = kwargs.get('params', {})
+                    req_data = kwargs.get('data', {})
                     logger.error(f"ARI error {resp.status} on {method} {endpoint}")
                     if req_json:
                         logger.error(f"  Request JSON: {json.dumps(req_json, indent=2)}")
                     if req_params:
                         logger.error(f"  Request Params: {json.dumps(req_params, indent=2)}")
-                    logger.error(f"  Response: {error_text}")
+                    if req_data:
+                        logger.error(f"  Request Data: {req_data}")
+                    logger.error(f"  Response Headers: {resp.headers}")
+                    logger.error(f"  Response Body: {error_text}")
                     return None
                 if resp.status == 204:
                     return None
@@ -129,10 +133,13 @@ class AsteriskARIClient:
         format: str = "ulaw",
     ) -> dict:
         """Create external media channel for RTP."""
+        # Use form-encoded data (data=) instead of JSON or Query Params
+        # This matches how the Node.js ari-client sends complex objects
+        # to Asterisk ARI for the externalMedia endpoint.
         return await self._request(
             "POST",
             "/channels/externalMedia",
-            params={
+            data={
                 "app": self.app_name,
                 "external_host": f"{external_host}:{external_port}",
                 "format": format,
