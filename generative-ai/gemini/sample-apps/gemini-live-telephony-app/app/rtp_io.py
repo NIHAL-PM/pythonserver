@@ -127,7 +127,15 @@ class RTPUDPTransport:
 
         loop = asyncio.get_event_loop()
         try:
-            data, addr = await loop.sock_recvfrom(self.socket, 4096)
+            # Note: Windows loop.sock_recvfrom is often not implemented. 
+            # On Linux it usually works, but if it fails with NotImplementedError, 
+            # we fallback to run_in_executor with a standard recvfrom.
+            try:
+                data, addr = await loop.sock_recvfrom(self.socket, 4096)
+            except NotImplementedError:
+                # Fallback for systems where sock_recvfrom is not implemented
+                data, addr = await loop.run_in_executor(None, self.socket.recvfrom, 4096)
+
             self.remote_addr = addr
             packet = RTPPacket.from_bytes(data)
             if packet:
@@ -136,8 +144,11 @@ class RTPUDPTransport:
         except asyncio.TimeoutError:
             # Timeout is expected in non-blocking mode - just return None
             return None
+        except (BlockingIOError, ResourceWarning, InterruptedError):
+            # These are expected in non-blocking mode when no data is ready
+            return None
         except OSError as e:
-            if e.errno == 11:  # EAGAIN - no data available in non-blocking mode
+            if e.errno in (11, 35):  # EAGAIN (11) or EWOULDBLOCK (35)
                 return None
             logger.error(f"OSError receiving RTP packet: {e} (errno={e.errno})")
             return None
