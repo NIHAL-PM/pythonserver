@@ -124,6 +124,7 @@ class AsteriskARIClient:
             "POST",
             f"/channels/externalMedia",
             json={
+                "app": self.app_name,
                 "channelId": channel_id,
                 "externalHostIp": external_host,
                 "externalHostPort": external_port,
