@@ -53,6 +53,7 @@ class Config:
     GEMINI_CHANNELS: int = 1  # mono
 
     # Gemini Live Configuration
+    GOOGLE_API_KEY: Optional[str] = os.getenv("GOOGLE_API_KEY", None)
     GOOGLE_CLOUD_PROJECT: str = os.getenv("GOOGLE_CLOUD_PROJECT", "")
     GOOGLE_CLOUD_LOCATION: str = os.getenv("GOOGLE_CLOUD_LOCATION", "us-central1")
     GEMINI_MODEL: str = os.getenv(
@@ -61,7 +62,7 @@ class Config:
     GEMINI_VOICE: str = os.getenv("GEMINI_VOICE", "Puck")  # Voice presets
 
     # Service Configuration
-    SERVICE_LOG_LEVEL: str = os.getenv("SERVICE_LOG_LEVEL", "INFO")
+    SERVICE_LOG_LEVEL: str = os.getenv("SERVICE_LOG_LEVEL", "INFO").upper()
     ENABLE_TRANSCRIPT_LOGGING: bool = (
         os.getenv("ENABLE_TRANSCRIPT_LOGGING", "true").lower() == "true"
     )
@@ -69,8 +70,35 @@ class Config:
         os.getenv("ENABLE_REDIS_STATE", "false").lower() == "true"
     )
 
+    # Concurrency & Call Duration Limits
+    MAX_CONCURRENT_CALLS: int = int(os.getenv("MAX_CONCURRENT_CALLS", "10"))
+    CALL_DURATION_LIMIT_SECONDS: int = int(
+        os.getenv("CALL_DURATION_LIMIT_SECONDS", "300")
+    )
+    SILENCE_PADDING_MS: int = int(os.getenv("SILENCE_PADDING_MS", "100"))
+
+    # Conversation Settings
+    INITIAL_MESSAGE: str = os.getenv("INITIAL_MESSAGE", "Hi there!")
+
+    # Multi-tenancy
+    COMPANY_SLUG: str = os.getenv("COMPANY_SLUG", "default")
+
     # Redis Configuration (optional for scaling)
     REDIS_URL: Optional[str] = os.getenv("REDIS_URL", None)
+
+    # PostgreSQL Configuration (optional for transcript/metrics storage)
+    DB_HOST: str = os.getenv("DB_HOST", "localhost")
+    DB_PORT: int = int(os.getenv("DB_PORT", "5432"))
+    DB_NAME: str = os.getenv("DB_NAME", "convobridge")
+    DB_USER: str = os.getenv("DB_USER", "postgres")
+    DB_PASS: str = os.getenv("DB_PASS", "")
+    ENABLE_DB_LOGGING: bool = (
+        os.getenv("ENABLE_DB_LOGGING", "false").lower() == "true"
+    )
+
+    # Telegram Integration (optional for notifications)
+    TELEGRAM_TOKEN: Optional[str] = os.getenv("TELEGRAM_TOKEN", None)
+    TELEGRAM_ADMINS: str = os.getenv("TELEGRAM_ADMINS", "")
 
     # System Instruction
     SYSTEM_INSTRUCTION: str = os.getenv(
@@ -83,9 +111,10 @@ If the user interrupts, acknowledge and respond to the new input promptly.""",
     @classmethod
     def validate(cls) -> None:
         """Validate critical configuration."""
-        if not cls.GOOGLE_CLOUD_PROJECT:
+        # Require either API key or Google Cloud project for Gemini
+        if not cls.GOOGLE_API_KEY and not cls.GOOGLE_CLOUD_PROJECT:
             raise ValueError(
-                "GOOGLE_CLOUD_PROJECT environment variable must be set"
+                "Either GOOGLE_API_KEY or GOOGLE_CLOUD_PROJECT must be set for Gemini Auth"
             )
         if not cls.ARI_BASE_URL:
             raise ValueError("ARI_BASE_URL environment variable must be set")
