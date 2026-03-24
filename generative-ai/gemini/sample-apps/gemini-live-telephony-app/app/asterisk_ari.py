@@ -126,12 +126,11 @@ class AsteriskARIClient:
             f"/channels/externalMedia",
             json={
                 "app": self.app_name,
-                "channelId": channel_id,
-                "externalHostIp": external_host,
-                "externalHostPort": external_port,
-                "encapsulation": "rtp",
-                "transport": "udp",
+                "external_host": f"{external_host}:{external_port}",
                 "format": format,
+                "transport": "udp",
+                "encapsulation": "rtp",
+                "connection_type": "client",
                 "direction": "both",
             },
         )
