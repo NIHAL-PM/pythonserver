@@ -56,13 +56,17 @@ class AsteriskARIClient:
             async with self.session.request(method, url, **kwargs) as resp:
                 if resp.status >= 400:
                     error_text = await resp.text()
-                    logger.error(f"ARI error {resp.status}: {error_text}")
+                    # Log request details for debugging
+                    req_json = kwargs.get('json', {})
+                    logger.error(f"ARI error {resp.status} on {method} {endpoint}")
+                    logger.error(f"  Request payload: {json.dumps(req_json, indent=2)}")
+                    logger.error(f"  Response: {error_text}")
                     return None
                 if resp.status == 204:
                     return None
                 return await resp.json()
         except Exception as e:
-            logger.error(f"ARI request failed: {e}")
+            logger.error(f"ARI request failed on {method} {endpoint}: {type(e).__name__}: {e}")
             return None
 
     async def subscribe_stasis_events(

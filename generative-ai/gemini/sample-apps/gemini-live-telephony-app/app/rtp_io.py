@@ -133,8 +133,16 @@ class RTPUDPTransport:
             if packet:
                 return packet.payload, addr
             return None
+        except asyncio.TimeoutError:
+            # Timeout is expected in non-blocking mode - just return None
+            return None
+        except OSError as e:
+            if e.errno == 11:  # EAGAIN - no data available in non-blocking mode
+                return None
+            logger.error(f"OSError receiving RTP packet: {e} (errno={e.errno})")
+            return None
         except Exception as e:
-            logger.error(f"Error receiving RTP packet: {e}")
+            logger.error(f"Error receiving RTP packet: {type(e).__name__}: {e}")
             return None
 
     async def send_packet(self, payload: bytes) -> None:

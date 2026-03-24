@@ -23,6 +23,7 @@ import asyncio
 import logging
 import signal
 import sys
+from contextlib import asynccontextmanager
 
 import uvicorn
 from fastapi import FastAPI
@@ -48,8 +49,17 @@ logger = logging.getLogger(__name__)
 logging.getLogger("aiohttp").setLevel(logging.WARNING)
 logging.getLogger("google.auth").setLevel(logging.WARNING)
 
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    """Lifespan context manager for FastAPI startup/shutdown events."""
+    # Startup
+    await startup()
+    yield
+    # Shutdown
+    await shutdown()
+
 # FastAPI app (for health checks and admin endpoints)
-app = FastAPI(title="Asterisk + Gemini Live")
+app = FastAPI(title="Asterisk + Gemini Live", lifespan=lifespan)
 
 # Global state
 ari_client: AsteriskARIClient = None
@@ -257,16 +267,6 @@ async def shutdown():
         await ari_client.disconnect()
 
     logger.info("Shutdown complete")
-
-
-@app.on_event("startup")
-async def on_startup():
-    await startup()
-
-
-@app.on_event("shutdown")
-async def on_shutdown():
-    await shutdown()
 
 
 if __name__ == "__main__":
