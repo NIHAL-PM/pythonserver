@@ -58,8 +58,12 @@ class AsteriskARIClient:
                     error_text = await resp.text()
                     # Log request details for debugging
                     req_json = kwargs.get('json', {})
+                    req_params = kwargs.get('params', {})
                     logger.error(f"ARI error {resp.status} on {method} {endpoint}")
-                    logger.error(f"  Request payload: {json.dumps(req_json, indent=2)}")
+                    if req_json:
+                        logger.error(f"  Request JSON: {json.dumps(req_json, indent=2)}")
+                    if req_params:
+                        logger.error(f"  Request Params: {json.dumps(req_params, indent=2)}")
                     logger.error(f"  Response: {error_text}")
                     return None
                 if resp.status == 204:
@@ -128,15 +132,14 @@ class AsteriskARIClient:
         return await self._request(
             "POST",
             "/channels/externalMedia",
-            json={
+            params={
                 "app": self.app_name,
                 "external_host": f"{external_host}:{external_port}",
                 "format": format,
                 "transport": "udp",
                 "encapsulation": "rtp",
                 "connection_type": "client",
-                "direction": "both",
-                "channelId": channel_id
+                "direction": "both"
             },
         )
 
